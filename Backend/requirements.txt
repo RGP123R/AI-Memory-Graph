@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+spacy
+networkx
+sentence-transformers
+python-multipart
+pydantic-settings
+python-dotenv
