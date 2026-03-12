@@ -1,7 +1,7 @@
-fastapi
-uvicorn
+fastapi==0.110.0
+uvicorn==0.29.0
 spacy==3.7.2
-networkx
-python-multipart
-pydantic-settings
-python-dotenv
+networkx==3.2.1
+python-multipart==0.0.9
+python-dotenv==1.0.1
+pydantic-settings==2.2.1
