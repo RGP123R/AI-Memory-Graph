@@ -6,3 +6,4 @@ sentence-transformers
 python-multipart
 pydantic-settings
 python-dotenv
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
