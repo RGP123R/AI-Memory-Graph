@@ -14,8 +14,8 @@ build/
 node_modules/
 .next/
 out/
-.env
-.env.local
+.env*.local
+Backend/.env
 *.log
 
 # IDE

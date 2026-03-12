@@ -3,10 +3,23 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List, Dict, Tuple
 
-# Load spaCy model for NER and noun chunks
-nlp = spacy.load("en_core_web_sm")
+import os
+from spacy.util import get_lang_class
 
-# Load sentence transformer for semantic similarity
+# Load spaCy model lazily (hosting-safe)
+def load_spacy_model():
+    """Load or download spaCy model safely."""
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        print("Downloading en_core_web_sm model...")
+        os.system('pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz --quiet')
+        return spacy.load("en_core_web_sm")
+
+global nlp
+nlp = load_spacy_model()
+
+# Load sentence transformer for semantic similarity (now available via requirements)
 try:
     similarity_model = SentenceTransformer('all-MiniLM-L6-v2')
 except Exception as e:

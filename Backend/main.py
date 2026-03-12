@@ -1,21 +1,35 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 from typing import Optional, List
 import logging
 import sys
+import os
+from dotenv import load_dotenv
+from fastapi import Depends
+import spacy  # for healthcheck
+from nlp_processor import nlp, similarity_model
 
-# Configure logging
+load_dotenv()  # Load .env
+
+class Settings(BaseSettings):
+    frontend_url: str = "http://localhost:3000"
+    log_level: str = "INFO"
+
+settings = Settings()
+
+# Production logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=getattr(logging, settings.log_level),
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Import modules
+# Import modules (after deps loaded)
 try:
     from nlp_processor import analyze_concepts, extract_concepts
     from graph_builder import build_graph, get_graph_statistics
@@ -29,10 +43,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS - allow localhost origins for development
+# Secure CORS from env
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for development
+    allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "Authorization", "X-Requested-With"],
@@ -55,18 +69,46 @@ class GraphResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+    dependencies: dict
 
 
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint."""
-    return HealthResponse(status="healthy", version="1.0.0")
+    return HealthResponse(status="healthy", version="1.0.0", dependencies={})
 
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
     """Health check endpoint."""
-    return HealthResponse(status="healthy", version="1.0.0")
+    return HealthResponse(status="healthy", version="1.0.0", dependencies={})
+
+
+@app.get("/ready", response_model=HealthResponse)
+async def ready_check():
+    """Production readiness check."""
+    try:
+        # Test spacy
+        doc = nlp("test")
+        spacy_ok = bool(doc.ents)
+        
+        # Test sentence transformer if available
+        from nlp_processor import similarity_model
+        st_ok = similarity_model is not None
+        
+        deps = {
+            "spacy": spacy_ok,
+            "sentence_transformer": st_ok
+        }
+        
+        status = "ready" if all([spacy_ok, st_ok]) else "degraded"
+        
+        logger.info(f"Readiness check: {deps}")
+        return HealthResponse(status=status, version="1.0.0", dependencies=deps)
+        
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        raise HTTPException(status_code=503, detail="Service not ready")
 
 
 @app.post("/generate-graph", response_model=GraphResponse)
@@ -157,7 +199,5 @@ async def extract_only(data: TextInput):
         )
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Remove dev server for hosting (use gunicorn/Procfile)
 
